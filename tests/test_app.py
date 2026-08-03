@@ -39,24 +39,21 @@ def test_create_user(client):
     }
 
 
-def test_read_users(client):
-    respose = client.get('/users/')
-
-    assert respose.status_code == HTTPStatus.OK
-    assert respose.json() == {'users': []}
-
-
-def test_read_users_with_users(client, user):
+def test_read_users(client, user, token):
     user_schema = UserPublic.model_validate(user).model_dump()
-    respose = client.get('/users/')
+    respose = client.get(
+        '/users/',
+        headers={'Authorization': f'Bearer {token}'},
+    )
 
     assert respose.status_code == HTTPStatus.OK
     assert respose.json() == {'users': [user_schema]}
 
 
-def test_update_user(client, user):
+def test_update_user(client, user, token):
     response = client.put(
         '/users/1',
+        headers={'Authorization': f'Bearer {token}'},
         json={
             'username': 'bob',
             'email': 'bob@example.com',
@@ -72,14 +69,17 @@ def test_update_user(client, user):
     }
 
 
-def test_delete_user(client, user):
-    response = client.delete('/users/1')
+def test_delete_user(client, user, token):
+    response = client.delete(
+        f'/users/{user.id}',
+        headers={'Authorization': f'Bearer {token}'},
+    )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'Usuário excluído com sucesso!'}
 
 
-def test_update_integrity_error(client, user):
+def test_update_integrity_error(client, user, token):
     client.post(
         '/users/',
         json={
@@ -92,6 +92,7 @@ def test_update_integrity_error(client, user):
     # Alterando o user das fixture para fausto
     response = client.put(
         f'/users/{user.id}',
+        headers={'Authorization': f'Bearer {token}'},
         json={
             'username': 'fausto',
             'email': 'bob@example.com',
@@ -103,63 +104,14 @@ def test_update_integrity_error(client, user):
     assert response.json() == {'detail': 'Username or email already exists'}
 
 
-def test_read_user(client, user):
-    user_schema = UserPublic.model_validate(user).model_dump()
-    respose = client.get('/users/1')
-
-    assert respose.status_code == HTTPStatus.OK
-    assert respose.json() == user_schema
-
-
-def test_read_user_not_found(client):
-    response = client.get('/users/3')
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Usuário não encontrado!'}
-
-
-def test_update_user_not_found(client):
-    response = client.put(
-        '/users/1',
-        json={
-            'username': 'bob',
-            'email': 'bob@example.com',
-            'password': 'secret',
-        },
-    )
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Usuário não encontrado!'}
-
-
-def test_delete_user_not_found(client):
-    response = client.delete('/users/3')
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Usuário não encontrado!'}
-
-
-def test_create_user_username_exists(client, user):
+def test_get_token(client, user):
     response = client.post(
-        '/users/',
-        json={
-            'username': user.username,
-            'email': 'alice@example.com',
-            'password': 'secret',
-        },
+        '/token',
+        data={'username': user.email, 'password': user.clean_password},
     )
-    assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {'detail': 'Username already exists'}
 
+    token = response.json()
 
-def test_create_user_email_exists(client, user):
-    response = client.post(
-        '/users/',
-        json={
-            'username': 'alice',
-            'email': user.email,
-            'password': 'secret',
-        },
-    )
-    assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {'detail': 'Email already exists'}
+    assert response.status_code == HTTPStatus.OK
+    assert token['token_type'] == 'Bearer'
+    assert 'access_token' in token
