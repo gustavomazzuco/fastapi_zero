@@ -98,7 +98,7 @@ def test_get_current_user_not_exists(client):
 
 def test_get_token_user_invalid(client, user):
     response = client.post(
-        '/token',
+        '/auth/token',
         data={'username': 'nonexistent@example.com', 'password': user.clean_password},
     )
 
@@ -110,7 +110,7 @@ def test_get_token_user_invalid(client, user):
 
 def test_get_token_password_invalid(client, user):
     response = client.post(
-        '/token',
+        '/auth/token',
         data={'username': user.email, 'password': 'wrong_password'},
     )
 
